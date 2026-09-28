@@ -27,6 +27,7 @@ public Question(int id, String level, String topic, String subtopic, String ques
         this.id = id;
     }
     public String getLevel() {
+        
         return level;
     }
     public void setLevel(String level) {

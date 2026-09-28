@@ -17,7 +17,7 @@ Game play = new Game();
 
 ((Component) play).setFocusable(true);
 
-setBackground(Color.BLACK);
+setBackground(Color.BLUE);
 
 getContentPane().add(play);
 
