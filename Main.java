@@ -3,21 +3,19 @@ import java.awt.*;
 import java.awt.event.*;
 
 public class Main extends JFrame{
-    private static final int WIDTH =1200;
-    private static final int HEIGHT=800;
+    //private static final int WIDTH =1200;
+    //private static final int HEIGHT=800;
 
 public Main () {
 
-super("Visual Art");
+super("IB Question Bank");
 
-//setSize(Toolkit.getDefaultToolkit().getScreenSize().width, Toolkit.getDefaultToolkit().getScreenSize().height);
-setSize(WIDTH, HEIGHT);
+setSize(Toolkit.getDefaultToolkit().getScreenSize().width, Toolkit.getDefaultToolkit().getScreenSize().height);
+//setSize(WIDTH, HEIGHT);
 
 Game play = new Game();
 
 ((Component) play).setFocusable(true);
-
-//Color RoyalBlue = new Color(22,13,193);
 
 setBackground(Color.BLACK);
 
@@ -37,4 +35,5 @@ Main run = new Main();
  
 
 
+}
 }
