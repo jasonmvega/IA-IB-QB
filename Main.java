@@ -3,15 +3,12 @@ import java.awt.*;
 import java.awt.event.*;
 
 public class Main extends JFrame{
-    //private static final int WIDTH =1200;
-    //private static final int HEIGHT=800;
 
 public Main () {
 
 super("IB Question Bank");
 
 setSize(Toolkit.getDefaultToolkit().getScreenSize().width, Toolkit.getDefaultToolkit().getScreenSize().height);
-//setSize(WIDTH, HEIGHT);
 
 Game play = new Game();
 

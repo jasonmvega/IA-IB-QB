@@ -1,19 +1,38 @@
 import javax.swing.*;
 import java.awt.*;
-import java.awt.image.BufferedImage; 
 import java.awt.event.*; 
 
 public class Game  extends JPanel implements Runnable, KeyListener{
-private BufferedImage back;
-
 private int key; 
+private String UI;
+private final JButton beginPracticeButton;
+private final JButton higherLevelButton;
+private final JButton standardLevelButton;
+private String selectedLevel;
 private Question question1 = new Question(1, "Easy", "Math", "Algebra", "What is 2 + 2?", "4", "Adding two and two gives four.", 1);
 
 public Game() {
-new Thread(this).start();
+   key = -1;
+   UI = "mainMenu";
+   setLayout(null);
+   setFocusable(true);
+   addKeyListener(this);
 
-this.addKeyListener(this);
-key =-1; 
+   beginPracticeButton = new JButton("Begin Practice");
+   beginPracticeButton.addActionListener(e -> showConfiguration());
+   add(beginPracticeButton);
+
+   higherLevelButton = new JButton("Higher Level (HL)");
+   higherLevelButton.addActionListener(e -> startPractice("HL"));
+   add(higherLevelButton);
+
+   standardLevelButton = new JButton("Standard Level (SL)");
+   standardLevelButton.addActionListener(e -> startPractice("SL"));
+   add(standardLevelButton);
+   higherLevelButton.setVisible(false);
+   standardLevelButton.setVisible(false);
+
+   new Thread(this).start();
 }
 public void run()
    {
@@ -29,23 +48,77 @@ public void run()
       {
       }
   }
-public void paint(Graphics g){
-Graphics2D twoDgraph = (Graphics2D) g; 
-if( back ==null)
-back=(BufferedImage)( (createImage(getWidth(), getHeight()))); 
-Graphics g2d = back.createGraphics();
-g2d.clearRect(0,0,getSize().width, getSize().height);
-
-g2d.setColor(Color.WHITE);
-g2d.setFont(new Font("Arial", Font.PLAIN, 20));
-g2d.drawString("Question ID: " + question1.getId(), 50, 50);
-g2d.drawString("Level: " + question1.getLevel(), 50, 70);
-g2d.drawString("Topic: " + question1.getTopic(), 50, 90);
-g2d.drawString("Subtopic: " + question1.getSubtopic(), 50, 110);
-g2d.drawString("Question: " + question1.getQuestionText(), 50, 130);    
-        
-twoDgraph.drawImage(back, null, 0, 0);
+@Override
+protected void paintComponent(Graphics g) {
+   super.paintComponent(g);
+   beginPractice(g);
 }
+
+@Override
+public void doLayout() {
+   int buttonWidth = 190;
+   int buttonHeight = 44;
+   int centerX = (getWidth() - buttonWidth) / 2;
+   beginPracticeButton.setBounds(
+      centerX,
+      getHeight() / 2 + 55,
+      buttonWidth,
+      buttonHeight
+   );
+   higherLevelButton.setBounds(centerX - 105, getHeight() / 2 + 55, buttonWidth, buttonHeight);
+   standardLevelButton.setBounds(centerX + 105, getHeight() / 2 + 55, buttonWidth, buttonHeight);
+}
+
+public void beginPractice(Graphics g2d) {
+   switch(UI){
+       case "mainMenu":
+            g2d.setFont(new Font("Arial", Font.BOLD, 30));
+            g2d.setColor(Color.BLACK);
+            FontMetrics titleMetrics = g2d.getFontMetrics();
+            String title = "Welcome to the Unofficial IB Physics Question Bank!";
+            g2d.drawString(title, (getWidth() - titleMetrics.stringWidth(title)) / 2, getHeight() / 2);
+            g2d.setFont(new Font("Arial", Font.PLAIN, 18));
+            break;
+       case "configuration":
+            g2d.setFont(new Font("Arial", Font.BOLD, 30));
+            g2d.setColor(Color.BLACK);
+            String heading = "Configure Your Practice";
+            FontMetrics headingMetrics = g2d.getFontMetrics();
+            g2d.drawString(heading, (getWidth() - headingMetrics.stringWidth(heading)) / 2, getHeight() / 2 - 35);
+            g2d.setFont(new Font("Arial", Font.PLAIN, 20));
+            String subject = "Select your Physics level";
+            FontMetrics subjectMetrics = g2d.getFontMetrics();
+            g2d.drawString(subject, (getWidth() - subjectMetrics.stringWidth(subject)) / 2, getHeight() / 2 + 10);
+           break;
+       case "practice":
+           g2d.setFont(new Font("Arial", Font.BOLD, 24));
+           g2d.setColor(Color.BLACK);
+           g2d.drawString("Practice Mode", 100, 100);
+           g2d.drawString("Physics " + selectedLevel, 100, 150);
+           g2d.drawString("Question: " + question1.getQuestionText(), 100, 200);
+           g2d.drawString("Answer: " + question1.getAnswerText(), 100, 250);
+           g2d.drawString("Explanation: " + question1.getExplanationText(), 100, 300);
+           break;
+   }
+}
+
+private void showConfiguration() {
+   UI = "configuration";
+   beginPracticeButton.setVisible(false);
+   higherLevelButton.setVisible(true);
+   standardLevelButton.setVisible(true);
+   repaint();
+}
+
+private void startPractice(String level) {
+   selectedLevel = level;
+   UI = "practice";
+   higherLevelButton.setVisible(false);
+   standardLevelButton.setVisible(false);
+   repaint();
+   requestFocusInWindow();
+}
+
 //DO NOT DELETE
 @Override
 public void keyTyped(KeyEvent e) {
@@ -57,6 +130,9 @@ public void keyPressed(KeyEvent e) {
 // TODO Auto-generated method stub
 key= e.getKeyCode();
 System.out.println(key);
+if (UI.equals("mainMenu") && key == KeyEvent.VK_P) {
+   showConfiguration();
+}
 }
 //DO NOT DELETE
 @Override
