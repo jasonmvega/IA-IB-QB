@@ -8,7 +8,7 @@ public Main () {
 
 super("IB Question Bank");
 
-setSize(Toolkit.getDefaultToolkit().getScreenSize().width, Toolkit.getDefaultToolkit().getScreenSize().height);
+setBounds(GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds());
 
 Game play = new Game();
 
