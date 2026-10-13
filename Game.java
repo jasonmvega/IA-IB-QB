@@ -2,6 +2,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*; 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class Game  extends JPanel implements Runnable, KeyListener{
@@ -18,6 +19,7 @@ private final JScrollPane subtopicScrollPane;
 private final List<JCheckBox> subtopicCheckBoxes = new ArrayList<>();
 private final JButton backButton;
 private final JButton continueButton;
+private final JTextField answerField;
 private String selectedLevel;
 private List<String> selectedTopics = new ArrayList<>();
 private List<String> selectedSubtopics = new ArrayList<>();
@@ -32,9 +34,16 @@ private static final String[][] SUBTOPIC_NAMES = {
    {"A.1 Kinematics", "A.2 Forces and momentum", "A.3 Work, energy and power", "A.4 Rigid body mechanics", "A.5 Galilean and special relativity"},
    {"B.1 Thermal energy transfers", "B.2 Greenhouse effect", "B.3 Gas laws", "B.4 Thermodynamics"},
    {"C.1 Simple harmonic motion", "C.2 Wave model", "C.3 Wave phenomena", "C.4 Standing waves and resonance", "C.5 Doppler effect"},
-   {"D.1 Gravitational fields", "D.2 Electric and magnetic fields", "D.3 Motion in electromagnetic fields"},
+   {"D.1 Gravitational fields", "D.2 Electric and magnetic fields", "D.3 Motion in electromagnetic fields", "D.4 Induction"},
    {"E.1 Structure of the atom", "E.2 Quantum physics", "E.3 Radioactive decay", "E.4 Fission", "E.5 Fusion and stars"}
 };
+private static final List<String> HL_ONLY_SUBTOPIC_NAMES = Arrays.asList(
+   "A.4 Rigid body mechanics",
+   "A.5 Galilean and special relativity",
+   "B.4 Thermodynamics",
+   "D.4 Induction",
+   "E.2 Quantum physics"
+);
 private Question question1 = new Question(1, "Easy", "Math", "Algebra", "What is 2 + 2?", "4", "Adding two and two gives four.", 1);
 
 public Game() {
@@ -106,6 +115,11 @@ public Game() {
    continueButton.setVisible(false);
    add(continueButton);
 
+   answerField = new JTextField();
+   answerField.setFont(answerField.getFont().deriveFont(20f));
+   answerField.setVisible(false);
+   add(answerField);
+
    new Thread(this).start();
 }
 public void run()
@@ -157,6 +171,7 @@ public void doLayout() {
       scrollWidth,
       scrollHeight
    );
+   answerField.setBounds((getWidth() - scrollWidth) / 2, 245, scrollWidth, 42);
    backButton.setBounds(centerX - 105, controlsY, buttonWidth, buttonHeight);
    continueButton.setBounds(centerX + 105, controlsY, buttonWidth, buttonHeight);
 }
@@ -207,13 +222,9 @@ public void beginPractice(Graphics g2d) {
        case "practice":
            g2d.setFont(new Font("Arial", Font.BOLD, 24));
            g2d.setColor(Color.BLACK);
-           g2d.drawString("Practice Mode", 100, 100);
-           g2d.drawString("Physics " + selectedLevel, 100, 150);
-           g2d.drawString("Question: " + question1.getQuestionText(), 100, 200);
-           g2d.drawString("Answer: " + question1.getAnswerText(), 100, 250);
-           g2d.drawString("Explanation: " + question1.getExplanationText(), 100, 300);
-           g2d.drawString("Topics: " + String.join(", ", selectedTopics), 100, 350);
-           g2d.drawString("Subtopics: " + String.join(", ", selectedSubtopics), 100, 400);
+           g2d.drawString(question1.getQuestionText(), 100, 200);
+           g2d.setFont(new Font("Arial", Font.PLAIN, 18));
+           g2d.drawString("Your answer:", 100, 232);
            break;
    }
 }
@@ -228,8 +239,41 @@ private void showConfiguration() {
    backButton.setVisible(false);
    continueButton.setVisible(false);
    subtopicScrollPane.setVisible(false);
+   answerField.setVisible(false);
    repaint();
 }
+
+    public void checkAnswer() {
+        String userInput = answerField.getText();
+        try {
+            int userAnswer = Integer.parseInt(userInput);
+            if (userAnswer == q.getAnswer()) {
+                correct();
+                answerField.setText("");
+                score ++;
+                q = new Question(difficulty.getValue());
+                if (timedMode) {
+                    addTime();
+                }
+            } else if (userAnswer == q.getAnswer() + 1 || userAnswer == q.getAnswer() - 1) {
+                if (timedMode) {
+                    subTime();
+                }
+                JOptionPane.showMessageDialog(this, "So close! The correct answer is " + q.getAnswer() + ".");
+                answerField.setText("");
+                q = new Question(difficulty.getValue());
+            } else {
+                if (timedMode) {
+                    subTime();
+                }
+                JOptionPane.showMessageDialog(this, "Incorrect. The correct answer is " + q.getAnswer() + ".");
+                answerField.setText("");
+                q = new Question(difficulty.getValue());
+            }
+        } catch (NumberFormatException e) {
+            JOptionPane.showMessageDialog(this, "Please enter a number.");
+        }
+    }
 
 private void showTopicSelection(String level) {
    selectedLevel = level;
@@ -245,6 +289,7 @@ private void showTopicSelection() {
    backButton.setVisible(true);
    continueButton.setVisible(true);
    subtopicScrollPane.setVisible(false);
+   answerField.setVisible(false);
    updateContinueButton();
    repaint();
 }
@@ -270,6 +315,9 @@ private void showSubtopicSelection() {
       subtopicOptionsPanel.add(topicLabel);
 
       for (String subtopicName : SUBTOPIC_NAMES[i]) {
+         if ("SL".equals(selectedLevel) && HL_ONLY_SUBTOPIC_NAMES.contains(subtopicName)) {
+            continue;
+         }
          JCheckBox subtopicCheckBox = new JCheckBox(subtopicName);
          subtopicCheckBox.setFont(subtopicCheckBox.getFont().deriveFont(20f));
          subtopicCheckBox.setMargin(new Insets(6, 8, 6, 8));
@@ -289,6 +337,7 @@ private void showSubtopicSelection() {
    backButton.setVisible(true);
    continueButton.setVisible(true);
    subtopicScrollPane.setVisible(true);
+   answerField.setVisible(false);
    updateContinueButton();
    repaint();
 }
@@ -301,13 +350,15 @@ private void startPractice() {
       }
    }
    UI = "practice";
+   answerField.setText("");
+   answerField.setVisible(true);
    setTopicSelectionVisible(false);
    topicScrollPane.setVisible(false);
    backButton.setVisible(false);
    continueButton.setVisible(false);
    subtopicScrollPane.setVisible(false);
    repaint();
-   requestFocusInWindow();
+   answerField.requestFocusInWindow();
 }
 
 private void setTopicSelectionVisible(boolean visible) {
@@ -334,6 +385,8 @@ private void updateContinueButton() {
    }
    continueButton.setEnabled(false);
 }
+
+
 
 //DO NOT DELETE
 @Override
