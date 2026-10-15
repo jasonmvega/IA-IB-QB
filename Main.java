@@ -8,13 +8,13 @@ public Main () {
 
 super("IB Question Bank");
 
-setBounds(GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds());
+setSize(Toolkit.getDefaultToolkit().getScreenSize().width, Toolkit.getDefaultToolkit().getScreenSize().height);
 
 Game play = new Game();
 
 ((Component) play).setFocusable(true);
 
-setBackground(Color.BLUE);
+setBackground(Color.WHITE);
 
 getContentPane().add(play);
 
