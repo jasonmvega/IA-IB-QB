@@ -1,43 +1,36 @@
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.Statement;
+import java.sql.SQLException;
 
 public class Database {
 
-    public static Question getQuestion(int id) {
+    private static final String URL = "jdbc:sqlite:physics.db";
+
+    public static Connection connect() throws SQLException {
+        return DriverManager.getConnection(URL);
+    }
+
+    public static void createTable() {
         String sql = """
-            SELECT id, topic, question_text,
-                   option_a, option_b, option_c, option_d,
-                   correct_answer, explanation
-            FROM questions
-            WHERE id = ?
+            CREATE TABLE IF NOT EXISTS questions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                topic TEXT NOT NULL,
+                subtopic TEXT NOT NULL,
+                difficulty TEXT NOT NULL,
+                question TEXT NOT NULL,
+                answer TEXT NOT NULL
+            )
             """;
 
-        try (Connection conn = Database.connect();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+        try (Connection conn = connect();
+             Statement stmt = conn.createStatement()) {
 
-            stmt.setInt(1, id);
-
-            try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) {
-                    return new Question(
-                        rs.getInt("id"),
-                        rs.getString("topic"),
-                        rs.getString("question_text"),
-                        new String[]{
-                            rs.getString("option_a"),
-                            rs.getString("option_b"),
-                            rs.getString("option_c"),
-                            rs.getString("option_d")
-                        },
-                        rs.getString("correct_answer"),
-                        rs.getString("explanation")
-                    );
-                }
-            }
+            stmt.execute(sql);
+            System.out.println("Database connected!");
 
         } catch (SQLException e) {
             e.printStackTrace();
         }
-
-        return null;
     }
 }

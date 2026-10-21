@@ -16,8 +16,10 @@ public class Game extends JPanel implements Runnable {
     private JScrollPane topicSelectionScroll;
     private JCheckBox[] topicCheckBoxes;
     private JCheckBox[][] subtopicCheckBoxes;
+    private JTextField answerField;
     private int difficulty;
     private boolean updatingSelections;
+    private Question q;
     private final List<String> selectedSubtopics = new ArrayList<>();
     private final Topic[] topics = {
         new Topic("A", "Space, time and motion", new String[] {
@@ -67,6 +69,8 @@ public class Game extends JPanel implements Runnable {
         startLabel = new JLabel();
         levelLabel = new JLabel();
         selectionLabel = new JLabel();
+        answerField = new JTextField();
+        q=new Question();
         createTopicSelector();
         setSwing();
         ActionListeners();
@@ -120,6 +124,7 @@ public class Game extends JPanel implements Runnable {
             backButton.setVisible(false);
             continueButton.setVisible(false);
             topicSelectionScroll.setVisible(false);
+            answerField.setVisible(false);
             break;
          case 'A':
             start.setVisible(false);
@@ -131,6 +136,7 @@ public class Game extends JPanel implements Runnable {
             backButton.setVisible(false);
             continueButton.setVisible(false);
             topicSelectionScroll.setVisible(false);
+            answerField.setVisible(false);
             break;
          case 'T':
             start.setVisible(false);
@@ -146,6 +152,7 @@ public class Game extends JPanel implements Runnable {
             continueButton.setText("Start practice");
             continueButton.setVisible(true);
             topicSelectionScroll.setVisible(true);
+            answerField.setVisible(false);
             break;
          case 'Q':
             start.setVisible(false);
@@ -154,13 +161,13 @@ public class Game extends JPanel implements Runnable {
             SL.setVisible(false);
             levelLabel.setVisible(false);
             topicSelectionScroll.setVisible(false);
-            continueButton.setVisible(false);
-            selectionLabel.setText("Practice started: " + selectedSubtopics.size()
-                + " subtopics selected across " + getSelectedTopicCodes() + ".");
             selectionLabel.setVisible(true);
-            backButton.setText("Choose a different practice");
-            backButton.setVisible(true);
+            selectionLabel.setText("Selected topics: " + getSelectedTopicCodes());
+            backButton.setVisible(false);
+            continueButton.setVisible(false);
+            answerField.setVisible(true);
             break;
+
       }
    }
 
@@ -189,6 +196,8 @@ public class Game extends JPanel implements Runnable {
       selectionLabel.setFont(new Font("Arial", Font.BOLD, 30));
       selectionLabel.setForeground(Color.BLACK);
       selectionLabel.setHorizontalAlignment(JLabel.CENTER);
+      answerField.setBounds((width - 300) / 2, 600, 300, 50);
+      answerField.setHorizontalAlignment(JTextField.CENTER);
 
       int gap = Math.min(10, Math.max(0, height - 2 * buttonHeight));
       int groupHeight = 2 * buttonHeight + gap;
@@ -220,6 +229,15 @@ public class Game extends JPanel implements Runnable {
           actionButtonWidth,
           buttonHeight);
 
+   }
+
+   public void checkAnswer(){
+    String userInput = answerField.getText();
+    try{
+        int userAnswer = Integer.parseInt(userInput);
+        if (userAnswer == q.getAnswer()) {
+            answerField.setText("");
+            q=new Question(difficulty.getValue());
    }
 
    public void ActionListeners(){
@@ -257,6 +275,7 @@ public class Game extends JPanel implements Runnable {
         this.add(backButton);
         this.add(continueButton);
         this.add(topicSelectionScroll);
+        this.add(answerField);
    }
 
    private void createTopicSelector() {
