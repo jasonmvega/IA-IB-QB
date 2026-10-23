@@ -1,3 +1,4 @@
+package src;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
@@ -70,6 +71,8 @@ public class Game extends JPanel implements Runnable {
         levelLabel = new JLabel();
         selectionLabel = new JLabel();
         answerField = new JTextField();
+        Database db = new Database();
+        db.readDatabase();
         q=new Question();
         createTopicSelector();
         setSwing();
@@ -110,7 +113,6 @@ public class Game extends JPanel implements Runnable {
         
         twoDgraph.drawImage(back, null, 0, 0);
     }
-
 
    private void updateScreen(){
       switch(screen){
@@ -166,6 +168,7 @@ public class Game extends JPanel implements Runnable {
             backButton.setVisible(false);
             continueButton.setVisible(false);
             answerField.setVisible(true);
+            g2d.drawString("Question: " + q.getQuestion(), 50, 50);
             break;
 
       }
