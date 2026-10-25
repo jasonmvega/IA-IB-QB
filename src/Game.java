@@ -2,6 +2,7 @@ package src;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
+import java.text.DecimalFormat;
 import java.awt.event.*;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -11,16 +12,21 @@ public class Game extends JPanel implements Runnable {
     private BufferedImage back;
     private char screen = 'S';
     private JButton start, HL, SL;
-    private JButton backButton, continueButton;
-    private JLabel startLabel, levelLabel, selectionLabel;
+    private JButton backButton, continueButton, showTimerLabel;
+    private JLabel startLabel, levelLabel, selectionLabel, questionLabel, explanationLabel, wrongLabel, formatLabel;
     private JPanel topicSelectionPanel;
     private JScrollPane topicSelectionScroll;
     private JCheckBox[] topicCheckBoxes;
     private JCheckBox[][] subtopicCheckBoxes;
     private JTextField answerField;
-    private int difficulty;
-    private boolean updatingSelections;
+    private int difficulty, currentQuestionIndex;
+    private boolean updatingSelections, timerRunning;
+    private double time;
+    private boolean stopwatchVisible = false;
+    private long startTime;
+    private long elapsedTime;
     private Question q;
+    private final List<Question> questions = new ArrayList<>();
     private final List<String> selectedSubtopics = new ArrayList<>();
     private final Topic[] topics = {
         new Topic("A", "Space, time and motion", new String[] {
@@ -70,10 +76,13 @@ public class Game extends JPanel implements Runnable {
         startLabel = new JLabel();
         levelLabel = new JLabel();
         selectionLabel = new JLabel();
+        time=0;
         answerField = new JTextField();
-        Database db = new Database();
-        db.readDatabase();
-        q=new Question();
+        questionLabel = new JLabel();
+        explanationLabel = new JLabel();
+        wrongLabel = new JLabel();
+        formatLabel = new JLabel("Please include format using: (Answer) (Unit)");
+        showTimerLabel = new JButton("Show Timer");
         createTopicSelector();
         setSwing();
         ActionListeners();
@@ -99,7 +108,7 @@ public class Game extends JPanel implements Runnable {
         }
     }
 
-
+    @Override 
     public void paintComponent(Graphics g) {
         super.paintComponent(g); 
         Graphics2D twoDgraph = (Graphics2D) g;
@@ -109,10 +118,20 @@ public class Game extends JPanel implements Runnable {
         
         Graphics g2d = back.createGraphics();
         
+       super.paintComponent(g);
+
+        if (q != null && q.getQuestion() != null) {
+        g2d.drawString(q.getQuestion(), 30, 100);
+}
         g2d.clearRect(0, 0, getSize().width, getSize().height);
+
+if (screen == 'Q' && stopwatchVisible) {
+    addTimer(g2d);
+}
         
         twoDgraph.drawImage(back, null, 0, 0);
-    }
+            }
+    
 
    private void updateScreen(){
       switch(screen){
@@ -127,6 +146,10 @@ public class Game extends JPanel implements Runnable {
             continueButton.setVisible(false);
             topicSelectionScroll.setVisible(false);
             answerField.setVisible(false);
+            explanationLabel.setVisible(false);
+            wrongLabel.setVisible(false);
+            formatLabel.setVisible(false);
+            showTimerLabel.setVisible(false);
             break;
          case 'A':
             start.setVisible(false);
@@ -165,12 +188,39 @@ public class Game extends JPanel implements Runnable {
             topicSelectionScroll.setVisible(false);
             selectionLabel.setVisible(true);
             selectionLabel.setText("Selected topics: " + getSelectedTopicCodes());
-            backButton.setVisible(false);
-            continueButton.setVisible(false);
+            backButton.setVisible(true);
+            backButton.setText("Next question");
+            continueButton.setVisible(true);
             answerField.setVisible(true);
-            g2d.drawString("Question: " + q.getQuestion(), 50, 50);
+            formatLabel.setVisible(true);
+            showTimerLabel.setVisible(true);
+            questionLabel.setText(
+            q != null && q.getQuestion() != null
+          ? q.getQuestion()
+         : "No question loaded."
+            );
+            continueButton.setText("Show explanation");
+            questionLabel.setVisible(true);
             break;
-
+            case 'F':
+        start.setVisible(false);
+        startLabel.setVisible(false);
+        HL.setVisible(false);
+        SL.setVisible(false);
+        levelLabel.setVisible(false);
+        topicSelectionScroll.setVisible(false);
+        selectionLabel.setText("Practice completed!");
+        selectionLabel.setVisible(true);
+        backButton.setText("Back to topics");
+        backButton.setVisible(true);
+        continueButton.setVisible(false);
+        answerField.setVisible(false);
+        questionLabel.setVisible(false);
+        explanationLabel.setVisible(false);
+        wrongLabel.setVisible(false);
+        formatLabel.setVisible(false);
+        showTimerLabel.setVisible(false);
+            break;
       }
    }
 
@@ -182,7 +232,14 @@ public class Game extends JPanel implements Runnable {
       int buttonX = (width - buttonWidth) / 2;
       int maxButtonY = Math.max(0, height - buttonHeight);
       int startY = Math.max(0, Math.min(height / 2 - 100, maxButtonY));
-
+showTimerLabel.setBounds(30, 30, 130, 35);
+showTimerLabel.setFont(new Font("Arial", Font.PLAIN, 14));
+      explanationLabel.setBounds(30, 300, width - 60, 200);
+      explanationLabel.setFont(new Font("Arial", Font.PLAIN, 20));
+      wrongLabel.setBounds(30, 500, width - 60, 50);
+      wrongLabel.setFont(new Font("Arial", Font.PLAIN, 20));
+      formatLabel.setBounds(30, 550, width - 60, 50);
+      formatLabel.setFont(new Font("Arial", Font.PLAIN, 20));
       start.setBounds(buttonX, startY, buttonWidth, buttonHeight);
       start.setHorizontalAlignment(JLabel.CENTER);
       startLabel.setBounds(0, -200, width, height);
@@ -201,7 +258,9 @@ public class Game extends JPanel implements Runnable {
       selectionLabel.setHorizontalAlignment(JLabel.CENTER);
       answerField.setBounds((width - 300) / 2, 600, 300, 50);
       answerField.setHorizontalAlignment(JTextField.CENTER);
-
+    questionLabel.setBounds(30, 100, width - 60, 150);
+    questionLabel.setFont(new Font("Arial", Font.PLAIN, 22));
+    questionLabel.setForeground(Color.BLACK);
       int gap = Math.min(10, Math.max(0, height - 2 * buttonHeight));
       int groupHeight = 2 * buttonHeight + gap;
       int maxGroupY = Math.max(0, height - groupHeight);
@@ -221,52 +280,216 @@ public class Game extends JPanel implements Runnable {
           Math.max(0, selectorBottom - selectorTop));
       int actionButtonWidth = Math.max(0, Math.min(200, (width - 60) / 2));
       int actionButtonX = Math.max(0, (width - actionButtonWidth * 2 - 20) / 2);
-      backButton.setBounds(
-          screen == 'Q' || screen == 'P' ? buttonX : actionButtonX,
-          actionButtonY,
-          screen == 'Q' || screen == 'P' ? buttonWidth : actionButtonWidth,
-          buttonHeight);
-      continueButton.setBounds(
-          actionButtonX + actionButtonWidth + 20,
-          actionButtonY,
-          actionButtonWidth,
-          buttonHeight);
+
+if (screen == 'Q') {
+    backButton.setBounds(
+        actionButtonX,
+        actionButtonY,
+        actionButtonWidth,
+        buttonHeight
+    );
+
+    continueButton.setBounds(
+        actionButtonX + actionButtonWidth + 20,
+        actionButtonY,
+        actionButtonWidth,
+        buttonHeight
+    );
+} else {
+    backButton.setBounds(
+        actionButtonX,
+        actionButtonY,
+        actionButtonWidth,
+        buttonHeight
+    );
+
+    continueButton.setBounds(
+        actionButtonX + actionButtonWidth + 20,
+        actionButtonY,
+        actionButtonWidth,
+        buttonHeight
+    );
+}
 
    }
 
-   public void checkAnswer(){
-    String userInput = answerField.getText();
-    try{
-        int userAnswer = Integer.parseInt(userInput);
-        if (userAnswer == q.getAnswer()) {
+   public void addTimer(Graphics g2d) {
+    long currentElapsed = elapsedTime;
+
+    if (timerRunning) {
+        currentElapsed += System.currentTimeMillis() - startTime;
+    }
+
+    double seconds = currentElapsed / 1000.0;
+
+    g2d.setColor(Color.BLACK);
+    g2d.setFont(new Font("Arial", Font.BOLD, 20));
+    g2d.drawString(
+        "Time: " + new DecimalFormat("0.00").format(seconds) + " s",
+        30,
+        90
+    );
+}
+ 
+public void checkAnswer() {
+    String userInput = answerField.getText().trim();
+
+    if (q == null) {
+        return;
+    }
+
+    try {
+        if (userInput.equals(q.getCorrectAnswer().trim())) {
             answerField.setText("");
-            q=new Question(difficulty.getValue());
-   }
+            explanationLabel.setText(q.getExplanation());
+            explanationLabel.setVisible(true);
+            wrongLabel.setForeground(Color.GREEN);
+            wrongLabel.setText("Correct!");
+            wrongLabel.setVisible(true);
+    
+        } else {
+            wrongLabel.setForeground(Color.RED);
+            wrongLabel.setText("Incorrect. Try again.");
+            wrongLabel.setVisible(true);
+        }
+
+    } catch (NumberFormatException e) {
+        questionLabel.setText("Please enter a valid whole number.");
+    }
+}
 
    public void ActionListeners(){
         start.addActionListener(e -> { screen = 'A'; updateScreen();});
-        HL.addActionListener(e -> selectDifficulty(1));
+        answerField.addActionListener(e -> checkAnswer());
+showTimerLabel.addActionListener(e -> {
+    stopwatchVisible = !stopwatchVisible;
+
+    if (stopwatchVisible) {
+        if (!timerRunning) {
+            startTime = System.currentTimeMillis();
+            timerRunning = true;
+        }
+
+        showTimerLabel.setText("Hide Timer");
+    } else {
+        showTimerLabel.setText("Show Timer");
+    }
+
+    repaint();
+});
+     HL.addActionListener(e -> selectDifficulty(1));
         SL.addActionListener(e -> selectDifficulty(2));
-        backButton.addActionListener(e -> {
-            if (screen == 'T') {
-                screen = 'A';
-            } else if (screen == 'Q') {
-                screen = 'T';
-            }
-            setSwing();
-            updateScreen();
-        });
-        continueButton.addActionListener(e -> {
-            updateSelectedSubtopics();
-            if (selectedSubtopics.isEmpty()) {
-                selectionLabel.setText("Select at least one subtopic to continue.");
-                return;
-            }
+
+backButton.addActionListener(e -> {
+    if (screen == 'F') {
+        screen = 'S';
+        q = null;
+        setSwing();
+        updateScreen();
+        repaint();
+
+    } else if (screen == 'T') {
+        screen = 'A';
+        setSwing();
+        updateScreen();
+
+    } else if (screen == 'Q') {
+        currentQuestionIndex++;
+
+        if (currentQuestionIndex < questions.size()) {
+            q = questions.get(currentQuestionIndex);
+
+            // Clear feedback from the previous question
+            explanationLabel.setText("");
+            explanationLabel.setVisible(false);
+            wrongLabel.setText("");
+            wrongLabel.setVisible(false);
+            answerField.setText("");
+
             screen = 'Q';
-            setSwing();
-            updateScreen();
-        });
+
+        } else {
+            q = null;
+            screen = 'F';
+        }
+
+        setSwing();
+        updateScreen();
+        repaint();
+    }
+});
+
+
+
+continueButton.addActionListener(e -> {
+    if (screen == 'T') {
+        updateSelectedSubtopics();
+
+        if (selectedSubtopics.isEmpty()) {
+            selectionLabel.setText("Select at least one subtopic to continue.");
+            return;
+        }
+
+        loadPracticeQuestions();
+
+        if (questions.isEmpty()) {
+            selectionLabel.setText("No questions found for those subtopics.");
+            return;
+        }
+
+        screen = 'Q';
+        setSwing();
+        updateScreen();
+
+    } else if (screen == 'Q' && q != null) {
+        explanationLabel.setText(q.getExplanation());
+        explanationLabel.setVisible(true);
+    }
+});
    }
+
+  private void loadPracticeQuestions() {
+    Database db = new Database();
+    List<Question> allQuestions = db.readDatabase();
+
+    questions.clear();
+
+    for (Question question : allQuestions) {
+        String databaseSubtopic = question.getSubtopic();
+
+        if (databaseSubtopic == null) {
+            continue;
+        }
+
+        // Get the code, such as "A.1", from the database
+        databaseSubtopic = databaseSubtopic.trim().split("\\s+")[0];
+
+        for (String selected : selectedSubtopics) {
+            // Get the code, such as "A.1", from the checkbox selection
+            String selectedCode = selected.trim().split("\\s+")[0];
+
+            if (databaseSubtopic.equalsIgnoreCase(selectedCode)) {
+                questions.add(question);
+                break;
+            }
+        }
+    }
+
+    currentQuestionIndex = 0;
+
+    if (!questions.isEmpty()) {
+        q = questions.get(currentQuestionIndex);
+        questionLabel.setText(q.getQuestion());
+    } else {
+        q = null;
+        questionLabel.setText(
+            "No questions found for the selected subtopics."
+        );
+    }
+
+    questionLabel.setVisible(true);
+    repaint();
+}
 
    public void addSwing(){
         this.add(start);
@@ -279,6 +502,11 @@ public class Game extends JPanel implements Runnable {
         this.add(continueButton);
         this.add(topicSelectionScroll);
         this.add(answerField);
+        this.add(questionLabel);
+        this.add(explanationLabel);
+        this.add(wrongLabel);
+        this.add(formatLabel);
+        this.add(showTimerLabel);
    }
 
    private void createTopicSelector() {
