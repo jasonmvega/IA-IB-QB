@@ -1,33 +1,42 @@
 package src;
 import javax.swing.*;
+import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.text.DecimalFormat;
 import java.awt.event.*;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class Game extends JPanel implements Runnable {
     private BufferedImage back;
     private char screen = 'S';
     private JButton start, HL, SL;
-    private JButton backButton, continueButton, showTimerLabel;
-    private JLabel startLabel, levelLabel, selectionLabel, questionLabel, explanationLabel, wrongLabel, formatLabel;
+    private JButton backButton, continueButton, showTimerLabel, displayDataBookletButton;
+    private JLabel startLabel, levelLabel, selectionLabel, questionLabel, wrongLabel, formatLabel;
+    private JTextArea explanationArea;
+    private JScrollPane explanationScroll;
     private JPanel topicSelectionPanel;
     private JScrollPane topicSelectionScroll;
     private JCheckBox[] topicCheckBoxes;
     private JCheckBox[][] subtopicCheckBoxes;
     private JTextField answerField;
     private int difficulty, currentQuestionIndex;
-    private boolean updatingSelections, timerRunning;
-    private double time;
+    private boolean updatingSelections, timerRunning, timerStarted;
     private boolean stopwatchVisible = false;
     private long startTime;
     private long elapsedTime;
     private Question q;
     private final List<Question> questions = new ArrayList<>();
     private final List<String> selectedSubtopics = new ArrayList<>();
+    private final Set<Integer> correctlyAnsweredQuestions = new HashSet<>();
     private final Topic[] topics = {
         new Topic("A", "Space, time and motion", new String[] {
             "A.1 Kinematics",
@@ -39,9 +48,10 @@ public class Game extends JPanel implements Runnable {
         new Topic("B", "The particulate nature of matter", new String[] {
             "B.1 Thermal energy transfers",
             "B.2 Greenhouse effect",
-            "B.3 Gas laws"
-        },
-            "B.4 Thermodynamics"),
+            "B.3 Gas laws",
+            "B.4 Thermodynamics",
+            "B.5 Current and circuits"
+        }, new boolean[] { false, false, false, true, false }),
         new Topic("C", "Wave behaviour", new String[] {
             "C.1 Simple harmonic motion",
             "C.2 Wave model",
@@ -76,13 +86,19 @@ public class Game extends JPanel implements Runnable {
         startLabel = new JLabel();
         levelLabel = new JLabel();
         selectionLabel = new JLabel();
-        time=0;
         answerField = new JTextField();
         questionLabel = new JLabel();
-        explanationLabel = new JLabel();
+        explanationArea = new JTextArea();
+        explanationArea.setEditable(false);
+        explanationArea.setLineWrap(true);
+        explanationArea.setWrapStyleWord(true);
+        explanationArea.setFont(new Font("Arial", Font.PLAIN, 20));
+        explanationScroll = new JScrollPane(explanationArea);
         wrongLabel = new JLabel();
-        formatLabel = new JLabel("Please include format using: (Answer) (Unit)");
+        formatLabel = new JLabel("Please include format using: (Answer) (Unit) (Direction if applicable) Ex: 1 m/s south");
+
         showTimerLabel = new JButton("Show Timer");
+        displayDataBookletButton = new JButton("Display Data Booklet");
         createTopicSelector();
         setSwing();
         ActionListeners();
@@ -146,10 +162,11 @@ if (screen == 'Q' && stopwatchVisible) {
             continueButton.setVisible(false);
             topicSelectionScroll.setVisible(false);
             answerField.setVisible(false);
-            explanationLabel.setVisible(false);
+            explanationScroll.setVisible(false);
             wrongLabel.setVisible(false);
             formatLabel.setVisible(false);
             showTimerLabel.setVisible(false);
+            displayDataBookletButton.setVisible(false);
             break;
          case 'A':
             start.setVisible(false);
@@ -162,6 +179,7 @@ if (screen == 'Q' && stopwatchVisible) {
             continueButton.setVisible(false);
             topicSelectionScroll.setVisible(false);
             answerField.setVisible(false);
+            displayDataBookletButton.setVisible(false);
             break;
          case 'T':
             start.setVisible(false);
@@ -178,6 +196,7 @@ if (screen == 'Q' && stopwatchVisible) {
             continueButton.setVisible(true);
             topicSelectionScroll.setVisible(true);
             answerField.setVisible(false);
+            displayDataBookletButton.setVisible(false);
             break;
          case 'Q':
             start.setVisible(false);
@@ -194,6 +213,7 @@ if (screen == 'Q' && stopwatchVisible) {
             answerField.setVisible(true);
             formatLabel.setVisible(true);
             showTimerLabel.setVisible(true);
+            displayDataBookletButton.setVisible(true);
             questionLabel.setText(
             q != null && q.getQuestion() != null
           ? q.getQuestion()
@@ -209,17 +229,25 @@ if (screen == 'Q' && stopwatchVisible) {
         SL.setVisible(false);
         levelLabel.setVisible(false);
         topicSelectionScroll.setVisible(false);
-        selectionLabel.setText("Practice completed!");
+        double accuracy = questions.isEmpty()
+            ? 0.0
+            : correctlyAnsweredQuestions.size() * 100.0 / questions.size();
+        selectionLabel.setText(
+            "<html><div style='text-align:center'>Practice completed!<br>"
+                + "Correct: " + correctlyAnsweredQuestions.size() + " / " + questions.size()
+                + "<br>Accuracy: " + new DecimalFormat("0.0").format(accuracy) + "%</div></html>");
+        selectionLabel.setBounds(0, Math.max(20, getHeight() / 2 - 120), getWidth(), 180);
         selectionLabel.setVisible(true);
         backButton.setText("Back to topics");
         backButton.setVisible(true);
         continueButton.setVisible(false);
         answerField.setVisible(false);
         questionLabel.setVisible(false);
-        explanationLabel.setVisible(false);
+        explanationScroll.setVisible(false);
         wrongLabel.setVisible(false);
         formatLabel.setVisible(false);
         showTimerLabel.setVisible(false);
+        displayDataBookletButton.setVisible(false);
             break;
       }
    }
@@ -234,8 +262,9 @@ if (screen == 'Q' && stopwatchVisible) {
       int startY = Math.max(0, Math.min(height / 2 - 100, maxButtonY));
 showTimerLabel.setBounds(30, 30, 130, 35);
 showTimerLabel.setFont(new Font("Arial", Font.PLAIN, 14));
-      explanationLabel.setBounds(30, 300, width - 60, 200);
-      explanationLabel.setFont(new Font("Arial", Font.PLAIN, 20));
+displayDataBookletButton.setBounds(170, 30, 190, 35);
+displayDataBookletButton.setFont(new Font("Arial", Font.PLAIN, 14));
+      explanationScroll.setBounds(30, 300, width - 60, 200);
       wrongLabel.setBounds(30, 500, width - 60, 50);
       wrongLabel.setFont(new Font("Arial", Font.PLAIN, 20));
       formatLabel.setBounds(30, 550, width - 60, 50);
@@ -330,6 +359,21 @@ if (screen == 'Q') {
         90
     );
 }
+
+   private void resetTimer() {
+    elapsedTime = 0;
+    if (timerStarted) {
+        startTime = System.currentTimeMillis();
+        timerRunning = true;
+    }
+}
+
+   private void pauseTimer() {
+    if (timerRunning) {
+        elapsedTime += System.currentTimeMillis() - startTime;
+        timerRunning = false;
+    }
+}
  
 public void checkAnswer() {
     String userInput = answerField.getText().trim();
@@ -340,9 +384,12 @@ public void checkAnswer() {
 
     try {
         if (userInput.equals(q.getCorrectAnswer().trim())) {
+            correctlyAnsweredQuestions.add(currentQuestionIndex);
+            pauseTimer();
             answerField.setText("");
-            explanationLabel.setText(q.getExplanation());
-            explanationLabel.setVisible(true);
+            explanationArea.setText(q.getExplanation());
+            explanationArea.setCaretPosition(0);
+            explanationScroll.setVisible(true);
             wrongLabel.setForeground(Color.GREEN);
             wrongLabel.setText("Correct!");
             wrongLabel.setVisible(true);
@@ -359,14 +406,19 @@ public void checkAnswer() {
 }
 
    public void ActionListeners(){
+
+   displayDataBookletButton.addActionListener(e -> {
+       displayDataBooklet();
+   });
         start.addActionListener(e -> { screen = 'A'; updateScreen();});
         answerField.addActionListener(e -> checkAnswer());
 showTimerLabel.addActionListener(e -> {
     stopwatchVisible = !stopwatchVisible;
 
     if (stopwatchVisible) {
-        if (!timerRunning) {
+        if (!timerStarted) {
             startTime = System.currentTimeMillis();
+            timerStarted = true;
             timerRunning = true;
         }
 
@@ -374,8 +426,6 @@ showTimerLabel.addActionListener(e -> {
     } else {
         showTimerLabel.setText("Show Timer");
     }
-
-    repaint();
 });
      HL.addActionListener(e -> selectDifficulty(1));
         SL.addActionListener(e -> selectDifficulty(2));
@@ -386,7 +436,6 @@ backButton.addActionListener(e -> {
         q = null;
         setSwing();
         updateScreen();
-        repaint();
 
     } else if (screen == 'T') {
         screen = 'A';
@@ -398,10 +447,11 @@ backButton.addActionListener(e -> {
 
         if (currentQuestionIndex < questions.size()) {
             q = questions.get(currentQuestionIndex);
+            resetTimer();
 
             // Clear feedback from the previous question
-            explanationLabel.setText("");
-            explanationLabel.setVisible(false);
+            explanationArea.setText("");
+            explanationScroll.setVisible(false);
             wrongLabel.setText("");
             wrongLabel.setVisible(false);
             answerField.setText("");
@@ -415,7 +465,6 @@ backButton.addActionListener(e -> {
 
         setSwing();
         updateScreen();
-        repaint();
     }
 });
 
@@ -438,14 +487,110 @@ continueButton.addActionListener(e -> {
         }
 
         screen = 'Q';
+        resetTimer();
         setSwing();
         updateScreen();
 
     } else if (screen == 'Q' && q != null) {
-        explanationLabel.setText(q.getExplanation());
-        explanationLabel.setVisible(true);
+        explanationArea.setText(q.getExplanation());
+        explanationArea.setCaretPosition(0);
+        explanationScroll.setVisible(true);
     }
 });
+   }
+
+   private void displayDataBooklet() {
+     if (q == null || q.getSubtopic() == null) {
+         JOptionPane.showMessageDialog(
+             this,
+             "The current question does not have a topic assigned.",
+             "Data booklet unavailable",
+             JOptionPane.ERROR_MESSAGE);
+         return;
+     }
+
+     String subtopic = q.getSubtopic().trim();
+     int separator = subtopic.indexOf('.');
+     if (separator < 1) {
+         JOptionPane.showMessageDialog(
+             this,
+             "Could not determine the topic for the current question.",
+             "Data booklet unavailable",
+             JOptionPane.ERROR_MESSAGE);
+         return;
+     }
+
+     String topicCode = subtopic.substring(0, separator).trim().toUpperCase();
+     if (!topicCode.matches("[A-E]")) {
+         JOptionPane.showMessageDialog(
+             this,
+             "No data booklet section is configured for topic " + topicCode + ".",
+             "Data booklet unavailable",
+             JOptionPane.ERROR_MESSAGE);
+         return;
+     }
+
+     Path[] imagePaths = topicCode.equals("A")
+         ? new Path[] { Paths.get("A1.jpg"), Paths.get("A2.jpg") }
+         : new Path[] { Paths.get("resources", topicCode + ".png") };
+     List<BufferedImage> images = new ArrayList<>();
+     int contentWidth = 0;
+     int contentHeight = 0;
+
+     try {
+         for (Path imagePath : imagePaths) {
+             if (!Files.isRegularFile(imagePath)) {
+                 JOptionPane.showMessageDialog(
+                     this,
+                     "Data booklet image not found: " + imagePath.toAbsolutePath(),
+                     "Data booklet unavailable",
+                     JOptionPane.ERROR_MESSAGE);
+                 return;
+             }
+
+             BufferedImage image = ImageIO.read(imagePath.toFile());
+             if (image == null) {
+                 JOptionPane.showMessageDialog(
+                     this,
+                     "The data booklet image could not be decoded: " + imagePath,
+                     "Data booklet unavailable",
+                     JOptionPane.ERROR_MESSAGE);
+                 return;
+             }
+             images.add(image);
+             contentWidth = Math.max(contentWidth, image.getWidth());
+             contentHeight += image.getHeight();
+         }
+     } catch (IOException e) {
+         JOptionPane.showMessageDialog(
+             this,
+             "Unable to read data booklet image:\n" + e.getMessage(),
+             "Data booklet unavailable",
+             JOptionPane.ERROR_MESSAGE);
+         return;
+     }
+
+     JPanel imagePanel = new JPanel();
+     imagePanel.setLayout(new BoxLayout(imagePanel, BoxLayout.Y_AXIS));
+     for (BufferedImage image : images) {
+         JLabel imageLabel = new JLabel(new ImageIcon(image));
+         imageLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+         imagePanel.add(imageLabel);
+     }
+
+     JScrollPane imageScrollPane = new JScrollPane(imagePanel);
+     imageScrollPane.setPreferredSize(new Dimension(
+         Math.min(contentWidth, 1000),
+         Math.min(contentHeight, 800)));
+
+     JDialog dialog = new JDialog(
+         SwingUtilities.getWindowAncestor(this),
+         "Data Booklet - Topic " + topicCode,
+         Dialog.ModalityType.APPLICATION_MODAL);
+     dialog.add(imageScrollPane);
+     dialog.pack();
+     dialog.setLocationRelativeTo(this);
+     dialog.setVisible(true);
    }
 
   private void loadPracticeQuestions() {
@@ -453,6 +598,7 @@ continueButton.addActionListener(e -> {
     List<Question> allQuestions = db.readDatabase();
 
     questions.clear();
+    correctlyAnsweredQuestions.clear();
 
     for (Question question : allQuestions) {
         String databaseSubtopic = question.getSubtopic();
@@ -488,7 +634,6 @@ continueButton.addActionListener(e -> {
     }
 
     questionLabel.setVisible(true);
-    repaint();
 }
 
    public void addSwing(){
@@ -503,10 +648,11 @@ continueButton.addActionListener(e -> {
         this.add(topicSelectionScroll);
         this.add(answerField);
         this.add(questionLabel);
-        this.add(explanationLabel);
+        this.add(explanationScroll);
         this.add(wrongLabel);
         this.add(formatLabel);
         this.add(showTimerLabel);
+        this.add(displayDataBookletButton);
    }
 
    private void createTopicSelector() {

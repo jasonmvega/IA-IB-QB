@@ -21,6 +21,16 @@ public class Topic implements java.io.Serializable {
         }
     }
 
+    public Topic(String code, String name, String[] subtopics, boolean[] higherLevelOnly) {
+        if (subtopics.length != higherLevelOnly.length) {
+            throw new IllegalArgumentException("Each subtopic must have a level setting.");
+        }
+        this.code = code;
+        this.name = name;
+        this.subtopics = subtopics.clone();
+        this.higherLevelOnly = higherLevelOnly.clone();
+    }
+
     public String getCode() {
         return code;
     }
